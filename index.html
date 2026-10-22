@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Yimtaka Scanner & POS - Product & Ingredient Lookup</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -74,6 +74,10 @@
         }
         .ingredient-chip:hover {
             transform: translateY(-1px);
+        }
+        /* Mobile Safe Area Inset Padding for Bottom Scan Bar */
+        .bottom-scan-sticky {
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 20px));
         }
     </style>
 </head>
@@ -219,7 +223,7 @@
         <header class="hidden md:flex h-14 bg-white border-b border-slate-200 items-center justify-between px-6 flex-shrink-0 z-10">
             <div class="flex items-center space-x-3">
                 <h2 id="page-title" class="text-lg font-bold text-slate-800">Barcode Scanner</h2>
-                <span id="page-subtitle" class="text-xs text-slate-400 font-medium border-l border-slate-200 pl-3">Live Ingredient & Dietary Inspector</span>
+                <span id="page-subtitle" class="text-xs text-slate-400 font-medium border-l border-slate-200 pl-3">Live Ingredient & Grouped Dietary Inspector</span>
             </div>
 
             <div class="flex items-center space-x-3">
@@ -239,8 +243,8 @@
         <!-- VIEW CONTAINER -->
         <div id="view-container" class="flex-1 overflow-y-auto p-3 sm:p-6 relative flex flex-col">
 
-            <!-- 1. BARCODE SCAN & PRODUCT INSPECTION VIEW (MOBILE PORTRAIT OPTIMIZED) -->
-            <section id="view-scan" class="flex-1 flex flex-col justify-between space-y-4 max-w-2xl mx-auto w-full">
+            <!-- 1. BARCODE SCAN & PRODUCT INSPECTION VIEW -->
+            <section id="view-scan" class="flex-1 flex flex-col justify-between space-y-4 max-w-2xl mx-auto w-full pb-20 sm:pb-16">
                 
                 <!-- TOP BARCODE INPUT CARD -->
                 <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 flex-shrink-0">
@@ -268,23 +272,25 @@
                     </div>
                 </div>
 
-                <!-- RESULTS / PRODUCT SELECTION LIST (SHOWN WHEN SEARCHED) -->
+                <!-- RESULTS / PRODUCT SELECTION LIST -->
                 <div id="scan-results-list" class="hidden space-y-2 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm max-h-48 overflow-y-auto flex-shrink-0">
                     <div class="text-[11px] font-bold uppercase text-slate-400 mb-1">Found Products (Select One):</div>
                     <div id="scan-results-items" class="space-y-1.5"></div>
                 </div>
 
-                <!-- FULL PRODUCT DETAILS SCROLLABLE DISPLAY CARD -->
-                <div id="scan-details-container" class="hidden flex-1 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm overflow-y-auto space-y-4">
+                <!-- FULL PRODUCT DETAILS DISPLAY CARD -->
+                <div id="scan-details-container" class="hidden flex-1 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm overflow-y-auto space-y-5">
                     <!-- Dynamic Product Content Populated Here -->
                 </div>
 
-                <!-- BOTTOM FIXED/PROMINENT SCAN BUTTON (Ideal for Mobile Portrait) -->
-                <div class="pt-2 sticky bottom-0 bg-slate-50 pb-2 z-10 flex-shrink-0">
-                    <button onclick="startCameraScanner()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-2xl font-bold text-base shadow-lg shadow-blue-500/25 flex items-center justify-center space-x-3 active:scale-[0.98] transition-all">
-                        <i class="fa-solid fa-camera text-xl"></i>
-                        <span>SCAN BARCODE WITH CAMERA</span>
-                    </button>
+                <!-- BOTTOM REPOSITIONED SCAN BUTTON (Elevated & Safe Area Inset Aware) -->
+                <div class="fixed inset-x-0 bottom-0 md:static bg-slate-50/95 backdrop-blur-md p-3 sm:p-0 border-t border-slate-200/80 md:border-t-0 z-30 bottom-scan-sticky">
+                    <div class="max-w-2xl mx-auto">
+                        <button onclick="startCameraScanner()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 sm:py-4 px-6 rounded-2xl font-bold text-base shadow-lg shadow-blue-500/25 flex items-center justify-center space-x-3 active:scale-[0.98] transition-all">
+                            <i class="fa-solid fa-camera text-xl"></i>
+                            <span>SCAN BARCODE WITH CAMERA</span>
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -435,7 +441,7 @@
                     <div id="exp-origin" class="font-medium text-slate-700 mt-0.5">Derived from...</div>
                 </div>
                 <div>
-                    <div class="font-bold text-slate-800 uppercase text-[10px] tracking-wider text-slate-400">Detailed Explanation</div>
+                    <div class="font-bold text-slate-800 uppercase text-[10px] tracking-wider text-slate-400">Detailed Explanation & Non-Vegan Reason</div>
                     <div id="exp-desc" class="leading-relaxed text-slate-600 mt-0.5">Explanation details...</div>
                 </div>
             </div>
@@ -472,98 +478,40 @@
         let selectedCameraId = localStorage.getItem('yimtaka_default_camera') || '';
         let availableCameras = [];
 
-        // --- ENUMERATED E-NUMBERS & INGREDIENT DICTIONARY ---
+        // --- ENHANCED E-NUMBER & ADDITIVES COMPREHENSIVE DICTIONARY ---
         const ENUMBER_DB = {
-            'E120': {
-                name: 'Cochineal / Carmine / Carminic Acid',
-                origin: 'Insects (Crushed female Cochineal scale insects)',
-                desc: 'A natural red pigment produced from dried female cochineal insects. Widely used in food, beverages, and cosmetics.',
-                vegan: false, vegetarian: false, alcohol: false, insect: true
-            },
-            'E471': {
-                name: 'Mono- and Diglycerides of Fatty Acids',
-                origin: 'Plant oils (Palm/Soy) or Animal fats',
-                desc: 'A synthetic emulsifier produced from glycerol and fatty acids. Can be plant or animal derived depending on manufacturer.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false, note: 'Plant derived in certified vegetarian products.'
-            },
-            'E1510': {
-                name: 'Ethanol / Ethyl Alcohol',
-                origin: 'Fermentation of sugars / Grains / Fruits',
-                desc: 'Alcohol derived from sugar fermentation used as a carrier or solvent for food flavorings.',
-                vegan: true, vegetarian: true, alcohol: true, insect: false
-            },
-            'E904': {
-                name: 'Shellac',
-                origin: 'Insects (Secretion of the female Lac insect Kerria lacca)',
-                desc: 'A natural resin secreted by lac bugs. Used as a shiny glaze coating on sweets, chocolates, and fruits.',
-                vegan: false, vegetarian: true, alcohol: false, insect: true
-            },
-            'E901': {
-                name: 'Beeswax (Yellow and White)',
-                origin: 'Insects (Honeybee honeycomb secretion)',
-                desc: 'Natural wax produced by honeybees. Used as a glazing agent on sweets and citrus fruits.',
-                vegan: false, vegetarian: true, alcohol: false, insect: true
-            },
-            'E441': {
-                name: 'Gelatin',
-                origin: 'Animal collagen (Pork or Cattle skin and bones)',
-                desc: 'A gelling protein obtained by boiling skin, tendons, ligaments, or bones with water.',
-                vegan: false, vegetarian: false, alcohol: false, insect: false
-            },
-            'E100': {
-                name: 'Curcumin / Turmeric Red',
-                origin: 'Plant (Turmeric root Curcuma longa)',
-                desc: 'Natural yellow color extracted from turmeric root rhizomes.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E160A': {
-                name: 'Beta-Carotene',
-                origin: 'Plant (Carrots / Palm oil) or Synthetic',
-                desc: 'Natural orange-yellow plant pigment and Vitamin A precursor.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E300': {
-                name: 'Ascorbic Acid (Vitamin C)',
-                origin: 'Synthetic / Glucose fermentation',
-                desc: 'Antioxidant and flour treatment agent widely added to fruit juices and breads.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E322': {
-                name: 'Lecithins',
-                origin: 'Plant (Soybeans, Sunflower seeds) or Egg yolk',
-                desc: 'Natural phospholipid emulsifier used in chocolates and baked goods.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E150A': {
-                name: 'Plain Caramel Color',
-                origin: 'Heat-treated Sugar (Carbohydrates)',
-                desc: 'Dark brown food coloring made by controlled heating of carbohydrates.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E202': {
-                name: 'Potassium Sorbate',
-                origin: 'Synthetic',
-                desc: 'Preservative inhibiting mold and yeast growth in dairy and beverages.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E330': {
-                name: 'Citric Acid',
-                origin: 'Fungal fermentation of sugar molasses (Aspergillus niger)',
-                desc: 'Natural acidulant and preservative found in citrus fruits.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E412': {
-                name: 'Guar Gum',
-                origin: 'Plant (Guar seed Cyamopsis tetragonoloba)',
-                desc: 'Natural seed gum powder used as thickener and stabilizer.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            },
-            'E415': {
-                name: 'Xanthan Gum',
-                origin: 'Bacterial fermentation (Xanthomonas campestris on sugar)',
-                desc: 'Polysaccharide thickening agent created by bacterial sugar fermentation.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            }
+            'E100': { name: 'Curcumin', origin: 'Plant (Turmeric Root)', desc: 'Natural yellow color derived from turmeric rhizomes.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E101': { name: 'Riboflavin (Vitamin B2)', origin: 'Plant / Synthetic / Microbial', desc: 'Yellow food color and Vitamin B2 supplement.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E120': { name: 'Carmine / Cochineal / Carminic Acid', origin: 'Insects (Crushed Female Cochineal Insects)', desc: 'Natural red dye made by drying and crushing female cochineal scale insects.', vegan: false, vegetarian: false, alcohol: false, insect: true, reason: 'Made by slaughtering female cochineal scale insects.' },
+            'E150A': { name: 'Plain Caramel Color', origin: 'Plant / Carbohydrate Sugars', desc: 'Brown food coloring produced by heating carbohydrate sugars.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E160A': { name: 'Beta-Carotene', origin: 'Plant (Carrots/Palm) / Synthetic', desc: 'Natural orange pigment and precursor to Vitamin A.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E160C': { name: 'Paprika Extract', origin: 'Plant (Red Peppers)', desc: 'Natural orange-red extract from sweet red peppers.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E200': { name: 'Sorbic Acid', origin: 'Synthetic / Plant', desc: 'Preservative inhibiting mold and yeast growth.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E202': { name: 'Potassium Sorbate', origin: 'Synthetic', desc: 'Common preservative inhibiting fungi in cheese, wine, and baked goods.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E211': { name: 'Sodium Benzoate', origin: 'Synthetic', desc: 'Antimicrobial preservative used in acidic foods and carbonated drinks.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E220': { name: 'Sulfur Dioxide', origin: 'Man-made Mineral / Synthetic', desc: 'Preservative and antioxidant widely used in dried fruits, juices, and winemaking.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E221': { name: 'Sodium Sulfite', origin: 'Man-made Mineral', desc: 'Preservative used to prevent browning in fruits and wines.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E222': { name: 'Sodium Hydrogen Sulfite', origin: 'Man-made Mineral', desc: 'Preservative and bleaching agent used in food processing.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E223': { name: 'Sodium Metabisulfite', origin: 'Man-made Mineral', desc: 'Preservative and antioxidant in wine and baked goods.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E224': { name: 'Potassium Metabisulfite', origin: 'Man-made Mineral', desc: 'Preservative and wine sterilizing agent.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E250': { name: 'Sodium Nitrite', origin: 'Man-made Synthetic Mineral', desc: 'Curing agent and preservative used in bacon, ham, and cured meats to prevent botulism.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E251': { name: 'Sodium Nitrate', origin: 'Man-made Mineral', desc: 'Preservative and color fixative in cured meats and cheeses.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E270': { name: 'Lactic Acid', origin: 'Plant / Sugar Fermentation', desc: 'Acidity regulator produced by bacterial sugar fermentation.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E300': { name: 'Ascorbic Acid (Vitamin C)', origin: 'Synthetic / Sugar Fermentation', desc: 'Antioxidant and dough improver widely added to bread and fruit juices.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E306': { name: 'Tocopherol-rich extract (Vitamin E)', origin: 'Plant (Vegetable Oils)', desc: 'Natural antioxidant extracted from vegetable oils.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E322': { name: 'Lecithins', origin: 'Plant (Soy / Sunflower) or Egg Yolk', desc: 'Emulsifier widely used in chocolates and baked goods.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E330': { name: 'Citric Acid', origin: 'Fungal Fermentation of Sugars', desc: 'Natural acidulant and preservative found in citrus fruits.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E410': { name: 'Locust Bean Gum', origin: 'Plant (Carob Seeds)', desc: 'Natural vegetable seed gum thickener.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E412': { name: 'Guar Gum', origin: 'Plant (Guar Beans)', desc: 'Natural seed gum powder used as thickener and stabilizer.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E414': { name: 'Acacia Gum / Gum Arabic', origin: 'Plant (Acacia Tree Sap)', desc: 'Natural sap resin used as emulsifier and stabilizer.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E415': { name: 'Xanthan Gum', origin: 'Bacterial Fermentation', desc: 'Thickening agent created by sugar fermentation with Xanthomonas bacteria.', vegan: true, vegetarian: true, alcohol: false, insect: false },
+            'E422': { name: 'Glycerol / Glycerin', origin: 'Plant Oils or Animal Fats', desc: 'Humectant and sweetener. Can be derived from plant oils or animal fat.', vegan: true, vegetarian: true, alcohol: false, insect: false, note: 'Check certification if animal fat derived.' },
+            'E441': { name: 'Gelatin', origin: 'Meat / Animal Collagen (Pork or Cattle bones/skin)', desc: 'Gelling protein obtained by boiling pork or cattle skin, cartilage, and bones.', vegan: false, vegetarian: false, alcohol: false, insect: false, reason: 'Extracted directly from slaughtered pigs or cattle bones and connective tissues.' },
+            'E471': { name: 'Mono- and Diglycerides of Fatty Acids', origin: 'Plant Oils (Palm/Soy) or Animal Fat', desc: 'Emulsifier produced from glycerol and fatty acids.', vegan: true, vegetarian: true, alcohol: false, insect: false, note: 'Derived from vegetable oils in certified vegan/vegetarian products.' },
+            'E901': { name: 'Beeswax', origin: 'Insect (Honeybee honeycomb secretion)', desc: 'Natural wax secreted by honeybees for honeycomb building.', vegan: false, vegetarian: true, alcohol: false, insect: true, reason: 'Animal/insect byproduct produced by honeybees.' },
+            'E904': { name: 'Shellac', origin: 'Insect (Secretion of Female Lac Bug)', desc: 'Resin secreted by female lac insects. Used as shiny glaze on confectionery.', vegan: false, vegetarian: true, alcohol: false, insect: true, reason: 'Harvested from tree branches coated with female lac bug secretions.' },
+            'E920': { name: 'L-Cysteine', origin: 'Animal Feathers / Poultry / Synthetic', desc: 'Dough conditioning amino acid extracted from duck feathers or poultry.', vegan: false, vegetarian: false, alcohol: false, insect: false, reason: 'Harvested from animal feathers or hair.' },
+            'E1510': { name: 'Ethanol / Ethyl Alcohol', origin: 'Alcohol / Fermented Sugars', desc: 'Alcohol derived from sugar fermentation used as a carrier or flavor solvent.', vegan: true, vegetarian: true, alcohol: true, insect: false }
         };
 
         // --- INIT & AUTH ---
@@ -626,73 +574,7 @@
                 b.classList.remove('bg-blue-600', 'text-white');
                 b.classList.add('text-slate-300');
             });
-            const btn = document.getElementById(`nav-${viewId}`);
-            if (btn) btn.classList.add('bg-blue-600', 'text-white');
-
-            const drawer = document.getElementById('sidebar');
-            if (!drawer.classList.contains('-translate-x-full')) {
-                drawer.classList.add('-translate-x-full');
-            }
-        }
-
-        // --- BARCODE SCANNER & LOOKUP LOGIC ---
-        function handleScanInput(e) {
-            const input = e.target;
-            const val = input.value.trim();
-            if (val.length >= 8) {
-                triggerScanLookup();
-            }
-        }
-
-        function handleScanKeydown(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                triggerScanLookup();
-            }
-        }
-
-        async function triggerScanLookup() {
-            const input = document.getElementById('scan-barcode-input');
-            const statusText = document.getElementById('scan-status-text');
-            const resultsList = document.getElementById('scan-results-list');
-            const resultsItems = document.getElementById('scan-results-items');
-            const detailsContainer = document.getElementById('scan-details-container');
-
-            const barcode = input.value.trim();
-            if (!barcode) {
-                input.className = 'w-full pl-11 pr-24 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-base font-mono focus:outline-none barcode-invalid';
-                statusText.className = 'text-xs text-rose-500 font-medium flex items-center space-x-1';
-                statusText.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><span>Please enter or scan a barcode.</span>';
-                return;
-            }
-
-            statusText.className = 'text-xs text-blue-600 font-medium flex items-center space-x-1';
-            statusText.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Searching local & online databases...</span>';
-
-            const foundItems = [];
-
-            // 1. Search local SQLite DB
-            const localStmt = db.prepare("SELECT * FROM products WHERE barcode = ?");
-            localStmt.bind([barcode]);
-            if (localStmt.step()) {
-                const p = localStmt.getAsObject();
-                foundItems.push({
-                    source: 'Local Inventory DB',
-                    name: p.name,
-                    brand: 'Local Stock',
-                    barcode: barcode,
-                    price: p.price,
-                    category: 'Inventory',
-                    ingredients_text: 'Local product item in database.',
-                    ingredients_tags: [],
-                    analysis_tags: ['en:vegan', 'en:vegetarian']
-                });
-            }
-            localStmt.free();
-
-            // 2. Search Open Food Facts Online API
-            try {
-                const offRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+            const btn = document.getElementById(`nav-${viewId}`); if (btn) btn.classList.add('bg-blue-600', 'text-white');  const drawer = document.getElementById('sidebar'); if (!drawer.classList.contains('-translate-x-full')) { drawer.classList.add('-translate-x-full'); } }  // --- BARCODE SCANNER & LOOKUP LOGIC --- function handleScanInput(e) { const input = e.target; if (input.value.trim().length >= 8) triggerScanLookup(); }  function handleScanKeydown(e) { if (e.key === 'Enter') { e.preventDefault(); triggerScanLookup(); } }  async function triggerScanLookup() { const input = document.getElementById('scan-barcode-input'); const statusText = document.getElementById('scan-status-text'); const resultsList = document.getElementById('scan-results-list'); const resultsItems = document.getElementById('scan-results-items'); const detailsContainer = document.getElementById('scan-details-container');  const barcode = input.value.trim(); if (!barcode) { input.className = 'w-full pl-11 pr-24 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-base font-mono focus:outline-none barcode-invalid'; statusText.className = 'text-xs text-rose-500 font-medium flex items-center space-x-1'; statusText.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><span>Please enter or scan a barcode.</span>'; return; }  statusText.className = 'text-xs text-blue-600 font-medium flex items-center space-x-1'; statusText.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Searching local & online databases...</span>';  const foundItems = [];  // 1. Local SQLite DB const localStmt = db.prepare("SELECT * FROM products WHERE barcode = ?"); localStmt.bind([barcode]); if (localStmt.step()) { const p = localStmt.getAsObject(); foundItems.push({ source: 'Local Inventory DB', name: p.name, brand: 'Local Stock', barcode: barcode, price: p.price, category: 'Inventory', ingredients_text: 'Coconut Oil (100\% pure plant derivative)', ingredients_tags: ['en:coconut-oil'], analysis_tags: ['en:vegan', 'en:vegetarian'] }); } localStmt.free();  // 2. Open Food Facts Online API try { const offRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
                 if (offRes.ok) {
                     const data = await offRes.json();
                     if (data.status === 1 && data.product) {
@@ -722,22 +604,44 @@
                     <div onclick="displayProductDetails(${idx})" class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer transition-all flex items-center justify-between">
                         <div>
                             <div class="font-bold text-xs text-slate-800">${item.name}</div>
-                            <div class="text-[10px] text-slate-400 font-medium">${item.brand} • ${item.source}</div>
+                            <div class="text-[10px] text-slate-400 font-medium">${item.brand} •${item.source}</div>
                         </div>
                         <i class="fa-solid fa-chevron-right text-xs text-slate-400"></i>
                     </div>
                 `).join('');
                 resultsList.classList.remove('hidden');
 
-                // Display first match automatically
                 displayProductDetails(0);
             } else {
                 input.className = 'w-full pl-11 pr-24 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-base font-mono focus:outline-none barcode-invalid';
                 statusText.className = 'text-xs text-rose-500 font-medium flex items-center space-x-1';
-                statusText.innerHTML = `<i class="fa-solid fa-circle-xmark"></i><span>No product found for barcode ${barcode}</span>`;
-                resultsList.classList.add('hidden');
-                detailsContainer.classList.add('hidden');
-            }
+                statusText.innerHTML = `<i class="fa-solid fa-circle-xmark"></i><span>No product found for barcode ${barcode}</span>`; resultsList.classList.add('hidden'); detailsContainer.classList.add('hidden'); } }  // --- ENUMBER PARSER (Handles 'E-220', 'E 220', 'E220') --- function extractENumbers(text) { if (!text) return []; const matches = text.match(/E[\s-]?\d{3,4}[a-i]?/gi) \vert{}\vert{} []; return Array.from(new Set(matches.map(m => 'E' + m.replace(/[^0-9a-zA-Z]/g, '').slice(1).toUpperCase()))); }  // --- GROUPED INGREDIENTS CLASSIFIER --- function groupIngredientsByType(text) { if (!text) return {}; const eCodes = extractENumbers(text); const tokens = text.split(/[,;\(\)]+/).map(t => t.trim()).filter(t => t.length > 1);  const groups = { 'E-Numbers & Additives': [], 'Meat & Animal Derived': [], 'Insect Derived': [], 'Alcohol & Solvents': [], 'Plant Derived': [], 'Man-made & Minerals': [] };  // Add normalized E-numbers first eCodes.forEach(code => { const info = ENUMBER_DB[code] \vert{}\vert{} { name: `Additive ${code}`, origin: 'Food Additive', vegan: true, vegetarian: true, alcohol: false, insect: false };
+                let targetGrp = 'E-Numbers & Additives';
+                if (info.insect) targetGrp = 'Insect Derived';
+                else if (info.alcohol) targetGrp = 'Alcohol & Solvents';
+                else if (!info.vegetarian) targetGrp = 'Meat & Animal Derived';
+                
+                groups[targetGrp].push({ code: code, label: `${code} (${info.name})`, info: info });
+            });
+
+            tokens.forEach(tok => {
+                const lower = tok.toLowerCase();
+                if (/E[\s-]?\d{3,4}/i.test(tok)) return; // Already handled in eCodes
+
+                if (/(pork|beef|chicken|gelatin|collagen|lard|tallow|bacon|ham|turkey|lamb|meat|cochineal|cysteine)/i.test(lower)) {
+                    const isInsect = /(cochineal|carmine|shellac|beeswax|lac)/i.test(lower);
+                    const grp = isInsect ? 'Insect Derived' : 'Meat & Animal Derived';
+                    groups[grp].push({ code: tok, label: tok, info: { name: tok, origin: isInsect ? 'Insect' : 'Slaughtered Animal', vegan: false, vegetarian: !isInsect, alcohol: false, insect: isInsect, reason: 'Derived from slaughtered animal or insect.' } });
+                } else if (/(alcohol|ethanol|spirit|wine|rum|beer|liqueur)/i.test(lower)) {
+                    groups['Alcohol & Solvents'].push({ code: tok, label: tok, info: { name: tok, origin: 'Fermented Alcohol', vegan: true, vegetarian: true, alcohol: true, insect: false } });
+                } else if (/(salt|water|sodium|potassium|calcium|acid|sulfite|nitrite|dioxide|dextrose|preservative)/i.test(lower)) {
+                    groups['Man-made & Minerals'].push({ code: tok, label: tok, info: { name: tok, origin: 'Mineral / Synthetic Chemical', vegan: true, vegetarian: true, alcohol: false, insect: false } });
+                } else if (/(oil|flour|sugar|wheat|cocoa|soy|starch|palm|coconut|fruit|vegetable|rice|barley|oat|vanilla|peanut)/i.test(lower)) {
+                    groups['Plant Derived'].push({ code: tok, label: tok, info: { name: tok, origin: 'Plant', vegan: true, vegetarian: true, alcohol: false, insect: false } });
+                }
+            });
+
+            return groups;
         }
 
         function displayProductDetails(idx) {
@@ -745,16 +649,36 @@
             if (!p) return;
 
             const container = document.getElementById('scan-details-container');
-
-            // Parse ingredients and E-numbers
             const ingText = p.ingredients_text || '';
             const eNumbersFound = extractENumbers(ingText);
+            const groupedIngs = groupIngredientsByType(ingText);
 
-            // Analysis status badges
-            const isVegan = p.analysis_tags.includes('en:vegan') || (!p.analysis_tags.includes('en:non-vegan') && !ingText.toLowerCase().includes('milk') && !ingText.toLowerCase().includes('gelatin'));
-            const isVegetarian = p.analysis_tags.includes('en:vegetarian') || isVegan;
-            const hasAlcohol = ingText.toLowerCase().includes('alcohol') || ingText.toLowerCase().includes('ethanol') || eNumbersFound.includes('E1510');
-            const hasInsect = eNumbersFound.includes('E120') || eNumbersFound.includes('E904') || eNumbersFound.includes('E901');
+            // Detailed dietary evaluation reasons
+            let veganReasons = [];
+            let vegReasons = [];
+            let isInsect = false;
+            let isAlcohol = false;
+
+            if (/gelatin/i.test(ingText)) { veganReasons.push('Contains Gelatin (boiled animal bones/skin)'); vegReasons.push('Contains Gelatin'); }
+            if (/pork|lard|bacon|ham/i.test(ingText)) { veganReasons.push('Contains Pork / Lard'); vegReasons.push('Contains Pork'); }
+            if (/beef|tallow|chicken|meat/i.test(ingText)) { veganReasons.push('Contains Meat / Animal fat'); vegReasons.push('Contains Meat'); }
+            if (/milk|whey|butter|cheese|cream/i.test(ingText)) { veganReasons.push('Contains Dairy (Milk/Whey/Butter)'); }
+            if (/egg|albumin/i.test(ingText)) { veganReasons.push('Contains Egg ingredients'); }
+
+            eNumbersFound.forEach(code => {
+                const info = ENUMBER_DB[code];
+                if (info) {
+                    if (!info.vegan) veganReasons.push(`${code} (${info.name}): ${info.reason \vert{}\vert{} 'Non-vegan additive'}`); if (!info.vegetarian) vegReasons.push(`${code} (${info.name}):${info.reason || 'Non-vegetarian additive'}`);
+                    if (info.insect) isInsect = true;
+                    if (info.alcohol) isAlcohol = true;
+                }
+            });
+
+            if (/cochineal|carmine|shellac|beeswax/i.test(ingText)) isInsect = true;
+            if (/alcohol|ethanol|wine/i.test(ingText)) isAlcohol = true;
+
+            const isVegan = veganReasons.length === 0;
+            const isVegetarian = vegReasons.length === 0;
 
             container.innerHTML = `
                 <div class="flex items-start space-x-3 border-b border-slate-100 pb-3">
@@ -769,184 +693,5 @@
                     </div>
                 </div>
 
-                <!-- DIETARY SUMMARY BADGES -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div class="p-2.5 rounded-xl ${isVegan ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'} font-bold flex items-center space-x-2">
-                        <i class="fa-solid ${isVegan ? 'fa-leaf text-emerald-600' : 'fa-ban text-rose-500'}"></i>
-                        <span>${isVegan ? 'Vegan' : 'Not Vegan'}</span>
-                    </div>
-                    <div class="p-2.5 rounded-xl ${isVegetarian ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'} font-bold flex items-center space-x-2">
-                        <i class="fa-solid ${isVegetarian ? 'fa-seedling text-emerald-600' : 'fa-ban text-rose-500'}"></i>
-                        <span>${isVegetarian ? 'Vegetarian' : 'Non-Veg'}</span>
-                    </div>
-                    <div class="p-2.5 rounded-xl ${!hasAlcohol ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'} font-bold flex items-center space-x-2">
-                        <i class="fa-solid ${!hasAlcohol ? 'fa-wine-glass-slash text-emerald-600' : 'fa-wine-glass text-amber-600'}"></i>
-                        <span>${!hasAlcohol ? 'Alcohol Free' : 'Contains Alcohol'}</span>
-                    </div>
-                    <div class="p-2.5 rounded-xl ${!hasInsect ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'} font-bold flex items-center space-x-2">
-                        <i class="fa-solid ${!hasInsect ? 'fa-bug-slash text-emerald-600' : 'fa-bug text-rose-600'}"></i>
-                        <span>${!hasInsect ? 'Insect Free' : 'Insect Derived'}</span>
-                    </div>
-                </div>
-
-                <!-- E-NUMBERS & ADDITIVES DETECTED (INTERACTIVE CLICKABLE CHIPS) -->
-                <div class="space-y-1.5">
-                    <div class="text-xs font-bold text-slate-800 uppercase tracking-wider text-[10px] text-slate-400">
-                        Detected Additives & E-Numbers (Click for details):
-                    </div>
-                    <div class="flex flex-wrap gap-1.5">
-                        ${eNumbersFound.length > 0 ? eNumbersFound.map(e => `
-                            <button onclick="explainIngredient('${e}')" class="ingredient-chip px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-mono font-bold flex items-center space-x-1">
-                                <i class="fa-solid fa-circle-info text-[10px]"></i>
-                                <span>${e}</span>
-                            </button>
-                        `).join('') : '<span class="text-xs text-slate-400 italic">No E-number additives detected in text.</span>'}
-                    </div>
-                </div>
-
-                <!-- FULL INGREDIENTS LIST -->
-                <div class="space-y-1">
-                    <div class="text-xs font-bold text-slate-800 uppercase tracking-wider text-[10px] text-slate-400">
-                        Ingredients List:
-                    </div>
-                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed font-normal">
-                        ${highlightIngredients(ingText)}
-                    </div>
-                </div>
-            `;
-
-            container.classList.remove('hidden');
-        }
-
-        function extractENumbers(text) {
-            const matches = text.match(/E\s?\d{3,4}[a-i]?/gi) || [];
-            return Array.from(new Set(matches.map(m => m.replace(/\s+/g, '').toUpperCase())));
-        }
-
-        function highlightIngredients(text) {
-            if (!text) return 'No ingredients listed.';
-            // Highlight clickable E-numbers inside text
-            return text.replace(/(E\s?\d{3,4}[a-i]?)/gi, function(match) {
-                const code = match.replace(/\s+/g, '').toUpperCase();
-                return `<strong onclick="explainIngredient('${code}')" class="text-blue-600 underline cursor-pointer hover:text-blue-800">${match}</strong>`;
-            });
-        }
-
-        function explainIngredient(code) {
-            const info = ENUMBER_DB[code] || {
-                name: `Additive ${code}`,
-                origin: 'Synthetic or Natural Food Additive',
-                desc: 'Standard European approved food additive code.',
-                vegan: true, vegetarian: true, alcohol: false, insect: false
-            };
-
-            document.getElementById('exp-title').innerText = info.name;
-            document.getElementById('exp-code').innerText = code;
-
-            // Update Vegan badge
-            const veganBadge = document.getElementById('exp-badge-vegan');
-            veganBadge.className = info.vegan ? 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-emerald-50 text-emerald-800 border border-emerald-200' : 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-rose-50 text-rose-800 border border-rose-200';
-            document.getElementById('exp-icon-vegan').className = info.vegan ? 'fa-solid fa-circle-check text-emerald-600' : 'fa-solid fa-circle-xmark text-rose-500';
-            document.getElementById('exp-text-vegan').innerText = info.vegan ? 'Vegan Suitable' : 'Not Vegan';
-
-            // Update Vegetarian badge
-            const vegBadge = document.getElementById('exp-badge-veg');
-            vegBadge.className = info.vegetarian ? 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-emerald-50 text-emerald-800 border border-emerald-200' : 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-rose-50 text-rose-800 border border-rose-200';
-            document.getElementById('exp-icon-veg').className = info.vegetarian ? 'fa-solid fa-circle-check text-emerald-600' : 'fa-solid fa-circle-xmark text-rose-500';
-            document.getElementById('exp-text-veg').innerText = info.vegetarian ? 'Vegetarian Suitable' : 'Not Vegetarian';
-
-            // Update Alcohol badge
-            const alcBadge = document.getElementById('exp-badge-alcohol');
-            alcBadge.className = !info.alcohol ? 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-emerald-50 text-emerald-800 border border-emerald-200' : 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-amber-50 text-amber-800 border border-amber-200';
-            document.getElementById('exp-icon-alcohol').className = !info.alcohol ? 'fa-solid fa-wine-glass-slash text-emerald-600' : 'fa-solid fa-wine-glass text-amber-600';
-            document.getElementById('exp-text-alcohol').innerText = !info.alcohol ? 'Alcohol Free' : 'Contains Alcohol';
-
-            // Update Insect badge
-            const insBadge = document.getElementById('exp-badge-insect');
-            insBadge.className = !info.insect ? 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-emerald-50 text-emerald-800 border border-emerald-200' : 'p-2.5 rounded-xl flex items-center space-x-2 font-bold bg-rose-50 text-rose-800 border border-rose-200';
-            document.getElementById('exp-icon-insect').className = !info.insect ? 'fa-solid fa-bug-slash text-emerald-600' : 'fa-solid fa-bug text-rose-600';
-            document.getElementById('exp-text-insect').innerText = !info.insect ? 'Insect Free' : 'Derived from Insects';
-
-            document.getElementById('exp-origin').innerText = info.origin;
-            document.getElementById('exp-desc').innerText = info.desc + (info.note ? ' ' + info.note : '');
-
-            openModal('ingredient-explain-modal');
-        }
-
-        // --- CAMERA SCANNER INTEGRATION ---
-        async function initCameraList() {
-            try {
-                const devices = await Html5Qrcode.getCameras();
-                availableCameras = devices || [];
-                const selects = [document.getElementById('setting-camera-select'), document.getElementById('modal-camera-select'), document.getElementById('active-camera-select')];
-                
-                selects.forEach(sel => {
-                    if (!sel) return;
-                    sel.innerHTML = availableCameras.map((c, i) => `
-                        <option value="${c.id}" ${c.id === selectedCameraId ? 'selected' : ''}>${c.label || 'Camera ' + (i + 1)}</option>
-                    `).join('');
-                });
-            } catch(e) {}
-        }
-
-        function startCameraScanner() {
-            openModal('camera-modal');
-            const camId = selectedCameraId || (availableCameras.length > 0 ? availableCameras[0].id : null);
-
-            html5QrCodeScanner = new Html5Qrcode("camera-reader");
-            const config = { fps: 15, qrbox: { width: 250, height: 250 } };
-
-            const cameraIdOrConfig = camId ? camId : { facingMode: "environment" };
-
-            html5QrCodeScanner.start(cameraIdOrConfig, config, (decodedText) => {
-                // Success scan
-                document.getElementById('scan-barcode-input').value = decodedText;
-                stopCameraScanner();
-                triggerScanLookup();
-            }).catch(err => {
-                console.error("Camera start error:", err);
-            });
-        }
-
-        function stopCameraScanner() {
-            if (html5QrCodeScanner) {
-                html5QrCodeScanner.stop().then(() => {
-                    html5QrCodeScanner.clear();
-                    closeModal('camera-modal');
-                }).catch(() => closeModal('camera-modal'));
-            } else {
-                closeModal('camera-modal');
-            }
-        }
-
-        function switchActiveCamera(camId) {
-            selectedCameraId = camId;
-            localStorage.setItem('yimtaka_default_camera', camId);
-            if (html5QrCodeScanner) {
-                html5QrCodeScanner.stop().then(() => startCameraScanner());
-            }
-        }
-
-        function openCameraSettingsModal() {
-            initCameraList();
-            openModal('camera-settings-modal');
-        }
-
-        function saveCameraPreference() {
-            const sel = document.getElementById('modal-camera-select');
-            selectedCameraId = sel.value;
-            localStorage.setItem('yimtaka_default_camera', selectedCameraId);
-            closeModal('camera-settings-modal');
-            alert("Camera preference saved!");
-        }
-
-        // --- UTILITY MODAL HELPERS ---
-        function openModal(id) { document.getElementById(id)?.classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id)?.classList.add('hidden'); }
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else if (document.exitFullscreen) document.exitFullscreen();
-        }
-    </script>
-</body>
-</html>
+                <!-- DIETARY STATUS BADGES -->
+                <div class="
